@@ -7,3 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
+tokio = { version = "0.2", default-features = false, features = ["io-util", "macros", "stream", "time", "sync"] }
+tokio-tungstenite = "*"
+
+[dependencies.tungstenite]
+version = "0.11.1"
+default-features = false
