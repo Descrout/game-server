@@ -5,8 +5,12 @@ use futures_util::stream::{SplitSink, SplitStream};
 use tungstenite::Message;
 use tokio::sync::mpsc::UnboundedSender;
 use futures_util::stream::StreamExt;
+use crate::Events;
+use quick_protobuf::{MessageRead, BytesReader, Result};
+use crate::proto::proto_all::*;
+
 pub struct Connection {
-    pub id: usize,
+    pub id: u32,
     pub name: Option<String>,
     pub peer: SocketAddr,
     pub sender: SplitSink<WebSocketStream<TcpStream>, Message>,
@@ -22,30 +26,30 @@ impl Connection{
         }
     }
 
-    pub async fn listen(id: usize, sender: UnboundedSender<String>, mut receiver: SplitStream<WebSocketStream<TcpStream>>) {
-        let mut msg_future = receiver.next();
+    pub fn parse_message(id: u32, mut msg: Vec<u8>) -> Result<Events> {
+        let header = msg.remove(0);
+        let mut reader = BytesReader::from_bytes(&msg);
+        match header{
+            0 => Ok(Events::SetName(id, SetName::from_reader(&mut reader, &msg)?)),
+            _ => Err(quick_protobuf::Error::Message("Undefined header.".to_string())),
+        }
+    }
+
+    pub async fn listen(id: u32, to_lobby: UnboundedSender<Events>, mut receiver: SplitStream<WebSocketStream<TcpStream>>) {
         println!("New connection listening {}", id);
-        loop {
-            
-            match msg_future.await {
-                Some(msg) => {
-                    if let Ok(msg) = msg {
-                        if msg.is_text() || msg.is_binary() {
-                            println!("Message received : {}", msg);
-                        }else {
-                            println!("Connection lost {}", id);
-                            break;
-                        }
-                    }else {
-                        println!("Connection lost {}", id);
-                        break;
+        while let Some(msg) = receiver.next().await {
+            if let Ok(msg) = msg {
+                if msg.is_binary() {
+                    if let Ok(event) = Self::parse_message(id, msg.into_data()){
+                        to_lobby.send(event).unwrap();
                     }
-                    msg_future = receiver.next();
-                },
-                None => {
-                    println!("Connection lost {}", id);
+                }else if msg.is_close(){
+                    to_lobby.send(Events::Disconnect(id)).unwrap();
                     break;
-                },
+                }
+            }else {
+                to_lobby.send(Events::Disconnect(id)).unwrap();
+                break;
             }
         }
     }

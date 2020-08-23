@@ -285,6 +285,7 @@ name = "nightcomes-server"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "quick-protobuf",
  "tokio",
  "tokio-tungstenite",
  "tungstenite",
@@ -353,6 +354,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f5f085b5d71e2188cb8271e5da0161ad52c3f227a661a3c135fdf28e258b12"
 dependencies = [
  "unicode-xid",
+]
+
+[[package]]
+name = "quick-protobuf"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e489d4a83c17ea69b0291630229b5d4c92a94a3bf0165f7f72f506e94cda8b4b"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]

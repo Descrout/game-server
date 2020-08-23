@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+message User{
+    int32 id = 1;
+    string name = 2;
+}
+
+message Room{
+    uint32 id = 1;
+    string name = 2;
+    bool password = 3;
+    int32 players = 4;
+}
+
+// 0 outgoing
+message SetName{
+    string name = 1;
+}
+
+// 0 incoming
+message Lobby{
+    repeated Room rooms = 1;
+    repeated User users = 2;
+}
+
+message CreateRoom{
+    string name = 1;
+    optional string password = 2; 
+}
+
+message JoinRoom{
+    uint32 id = 1;
+    optional string password = 2;
+}

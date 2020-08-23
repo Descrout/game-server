@@ -10,6 +10,7 @@ edition = "2018"
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 tokio = { version = "0.2", default-features = false, features = ["io-util", "macros", "stream", "time", "sync"] }
 tokio-tungstenite = "*"
+quick-protobuf = "0.7.0"
 
 [dependencies.tungstenite]
 version = "0.11.1"
