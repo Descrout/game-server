@@ -6,7 +6,8 @@ use tokio::net::{TcpListener};
 use tokio_tungstenite::{accept_async};
 
 use connection::Connection;
-use std::sync::{Arc,RwLock};
+use std::sync::{Arc};
+use tokio::sync::RwLock;
 use futures_util::{StreamExt};
 use lobby::lobby::Lobby;
 use lobby::lobby_events::Events;
@@ -43,7 +44,7 @@ async fn main() {
                 Ok(ws_stream) => {
                     let (sender, receiver) = ws_stream.split();
                     let conn = Connection::new(peer, sender);
-                    let id = lobby_inner.write().unwrap().add_connection(conn);
+                    let id = lobby_inner.write().await.add_connection(conn);
                     tokio::spawn(Connection::listen(id , tx, receiver));
                 },
             }
