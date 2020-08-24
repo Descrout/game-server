@@ -8,7 +8,7 @@ use futures_util::stream::StreamExt;
 use crate::Events;
 use quick_protobuf::{MessageRead, BytesReader, Result};
 use crate::proto::proto_all::*;
-
+use crate::headers::ReceiveHeader;
 pub struct Connection {
     pub id: u32,
     pub name: Option<String>,
@@ -26,11 +26,11 @@ impl Connection{
         }
     }
 
-    pub fn parse_message(id: u32, mut msg: Vec<u8>) -> Result<Events> {
+    pub fn parse_receive(id: u32, mut msg: Vec<u8>) -> Result<Events> {
         let header = msg.remove(0);
         let mut reader = BytesReader::from_bytes(&msg);
         match header{
-            0 => Ok(Events::SetName(id, SetName::from_reader(&mut reader, &msg)?)),
+            ReceiveHeader::SETNAME => Ok(Events::SetName(id, SetName::from_reader(&mut reader, &msg)?)),
             _ => Err(quick_protobuf::Error::Message("Undefined header.".to_string())),
         }
     }
@@ -40,7 +40,7 @@ impl Connection{
         while let Some(msg) = receiver.next().await {
             if let Ok(msg) = msg {
                 if msg.is_binary() {
-                    if let Ok(event) = Self::parse_message(id, msg.into_data()){
+                    if let Ok(event) = Self::parse_receive(id, msg.into_data()){
                         to_lobby.send(event).unwrap();
                     }
                 }else if msg.is_close(){

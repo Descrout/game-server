@@ -15,7 +15,7 @@ use super::*;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct User {
-    pub id: i32,
+    pub id: u32,
     pub name: String,
 }
 
@@ -24,7 +24,7 @@ impl<'a> MessageRead<'a> for User {
         let mut msg = Self::default();
         while !r.is_eof() {
             match r.next_tag(bytes) {
-                Ok(8) => msg.id = r.read_int32(bytes)?,
+                Ok(8) => msg.id = r.read_uint32(bytes)?,
                 Ok(18) => msg.name = r.read_string(bytes)?.to_owned(),
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
@@ -37,12 +37,12 @@ impl<'a> MessageRead<'a> for User {
 impl MessageWrite for User {
     fn get_size(&self) -> usize {
         0
-        + if self.id == 0i32 { 0 } else { 1 + sizeof_varint(*(&self.id) as u64) }
+        + if self.id == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.id) as u64) }
         + if self.name == String::default() { 0 } else { 1 + sizeof_len((&self.name).len()) }
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
-        if self.id != 0i32 { w.write_with_tag(8, |w| w.write_int32(*&self.id))?; }
+        if self.id != 0u32 { w.write_with_tag(8, |w| w.write_uint32(*&self.id))?; }
         if self.name != String::default() { w.write_with_tag(18, |w| w.write_string(&**&self.name))?; }
         Ok(())
     }

@@ -1,6 +1,7 @@
 mod connection;
 mod lobby;
 mod proto;
+mod headers;
 
 use tokio::net::{TcpListener};
 use tokio_tungstenite::{accept_async};
@@ -12,7 +13,6 @@ use futures_util::{StreamExt};
 use lobby::lobby::Lobby;
 use lobby::lobby_events::Events;
 use tokio::sync::mpsc;
-
 
 const PORT: &str = "6444";
 
@@ -33,21 +33,21 @@ async fn main() {
     });
     
     println!("Listening on: {}", addr);
-
+    
     // Accept new clients
     while let Ok((stream, peer)) = listener.accept().await {
         let lobby_inner = lobby.clone();
         let tx = tx.clone();
-        tokio::spawn(async move {
-            match accept_async(stream).await {
-                Err(e) => println!("Websocket connection error : {}", e),
-                Ok(ws_stream) => {
-                    let (sender, receiver) = ws_stream.split();
-                    let conn = Connection::new(peer, sender);
-                    let id = lobby_inner.write().await.add_connection(conn);
-                    tokio::spawn(Connection::listen(id , tx, receiver));
-                },
-            }
-        });
+        //tokio::spawn(async move {
+        match accept_async(stream).await {
+            Err(e) => println!("Websocket connection error : {}", e),
+            Ok(ws_stream) => {
+                let (sender, receiver) = ws_stream.split();
+                let conn = Connection::new(peer, sender);
+                let id = lobby_inner.write().await.add_connection(conn);
+                tokio::spawn(Connection::listen(id , tx, receiver));
+            },
+        }
+        //});
     }
 }
