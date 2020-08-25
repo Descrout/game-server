@@ -13,7 +13,7 @@ message Room{
 }
 
 // 0 outgoing
-message SetName{
+message Handshake{
     string name = 1;
 }
 

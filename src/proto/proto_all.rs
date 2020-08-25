@@ -92,11 +92,11 @@ impl MessageWrite for Room {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct SetName {
+pub struct Handshake {
     pub name: String,
 }
 
-impl<'a> MessageRead<'a> for SetName {
+impl<'a> MessageRead<'a> for Handshake {
     fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
         let mut msg = Self::default();
         while !r.is_eof() {
@@ -110,7 +110,7 @@ impl<'a> MessageRead<'a> for SetName {
     }
 }
 
-impl MessageWrite for SetName {
+impl MessageWrite for Handshake {
     fn get_size(&self) -> usize {
         0
         + if self.name == String::default() { 0 } else { 1 + sizeof_len((&self.name).len()) }

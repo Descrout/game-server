@@ -1,5 +1,3 @@
-use std::sync::{Arc};
-use tokio::sync::RwLock;
 use std::collections::HashMap;
 use crate::connection::Connection;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -37,9 +35,7 @@ impl Lobby{
             rooms: Vec::new(),
         };
         for (id, conn) in self.connections.iter() {
-            if let Some(name) = &conn.name {
-                lobby.users.push(proto_all::User{id: *id, name : name.to_string()});
-            }
+                lobby.users.push(proto_all::User{id: *id, name : conn.name.clone()});
         }
         
         let mut out = Vec::new();
@@ -49,25 +45,25 @@ impl Lobby{
         out
     }
 
-    pub async fn listen(lobby: Arc<RwLock<Self>>, mut receiver: UnboundedReceiver<Events>) {
+    pub async fn listen(mut receiver: UnboundedReceiver<Events>) {
+        let mut lobby = Self::new();
         while let Some(event) = receiver.next().await {
             match event {
-                Events::SetName(id, set_name) => {
-                    let data = {
-                        let mut lobby = lobby.write().await;
-                        lobby.connections.get_mut(&id).unwrap().name = Some(set_name.name);
-                        lobby.serialize()
-                    };
-                    Self::broadcast(lobby.clone(), data).await;
-                    println!("Name set ");
+                Events::Handshake(tx, conn) => {
+                    let id = lobby.add_connection(conn);
+                    if tx.send(id).is_ok(){
+                        let data = lobby.serialize();
+                        lobby.broadcast(data).await;
+                    }else{
+                        lobby.connections.remove(&id).unwrap();
+                    }
                 },
                 Events::Disconnect(id) => {
                     let data = {
-                        let mut lobby = lobby.write().await;
                         lobby.connections.remove(&id).unwrap();
                         lobby.serialize()
                     };
-                    Self::broadcast(lobby.clone(), data).await;
+                    lobby.broadcast(data).await;
                     println!("Connection lost {}", id);
                 },
                 Events::CreateRoom(id, create_room) => {
@@ -81,8 +77,8 @@ impl Lobby{
     }
 
 
-    async fn broadcast(lobby: Arc<RwLock<Self>>, data: Vec<u8>) {
-        for conn in lobby.write().await.connections.values_mut() {
+    async fn broadcast(&mut self, data: Vec<u8>) {
+        for conn in self.connections.values_mut() {
             let _ = conn.sender.send(Message::Binary(data.clone())).await;
         }
     }

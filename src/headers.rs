@@ -3,5 +3,6 @@ pub mod SendHeader {
 }
 
 pub mod ReceiveHeader {
-    pub const SETNAME: u8 = 0;
+    pub const HANDSHAKE: u8 = 0;
+    pub const CREATE_ROOM: u8 = 1;
 }
