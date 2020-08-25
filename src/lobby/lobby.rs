@@ -10,23 +10,38 @@ use quick_protobuf::{Writer};
 use crate::headers::SendHeader;
 
 pub struct Lobby{
-    pub connections: HashMap<u32, Connection>,
-    pub indices: u32,
+    connections: HashMap<u32, Connection>,
+    max_client: u32,
+    indices: u32,
+    index_pool: Vec<u32>,
 }
 
 impl Lobby{
     pub fn new() -> Self{
         Self{
             connections: HashMap::new(),
+            max_client: 100,
             indices: 0,
+            index_pool: Vec::new(),
         }
     }
 
-    pub fn add_connection(&mut self, mut conn: Connection) -> u32{
-        self.indices += 1;
-        conn.id = self.indices;
-        self.connections.insert(conn.id , conn);
-        self.indices
+    pub fn add_connection(&mut self, mut conn: Connection) -> Option<u32>{
+        let id = if self.index_pool.len() > 0 {
+            self.index_pool[0]
+        }else if self.indices < self.max_client{
+            self.indices += 1;
+            self.indices
+        }else {
+            0
+        };
+        
+        if id == 0 {return None}
+
+        conn.id = id;
+        self.connections.insert(id , conn);
+
+        Some(id)
     }
 
     fn serialize(&self) -> Vec<u8> {
@@ -35,7 +50,7 @@ impl Lobby{
             rooms: Vec::new(),
         };
         for (id, conn) in self.connections.iter() {
-                lobby.users.push(proto_all::User{id: *id, name : conn.name.clone()});
+            lobby.users.push(proto_all::User{id: *id, name : conn.name.clone()});
         }
         
         let mut out = Vec::new();
@@ -50,12 +65,13 @@ impl Lobby{
         while let Some(event) = receiver.next().await {
             match event {
                 Events::Handshake(tx, conn) => {
-                    let id = lobby.add_connection(conn);
-                    if tx.send(id).is_ok(){
-                        let data = lobby.serialize();
-                        lobby.broadcast(data).await;
-                    }else{
-                        lobby.connections.remove(&id).unwrap();
+                    if let Some(id) = lobby.add_connection(conn){
+                        if tx.send(id).is_ok(){
+                            let data = lobby.serialize();
+                            lobby.broadcast(data).await;
+                        }else{
+                            lobby.connections.remove(&id).unwrap();
+                        }
                     }
                 },
                 Events::Disconnect(id) => {
@@ -64,6 +80,7 @@ impl Lobby{
                         lobby.serialize()
                     };
                     lobby.broadcast(data).await;
+                    lobby.index_pool.push(id);
                     println!("Connection lost {}", id);
                 },
                 Events::CreateRoom(id, create_room) => {
