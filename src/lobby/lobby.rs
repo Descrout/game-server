@@ -28,7 +28,7 @@ impl Lobby{
 
     pub fn add_connection(&mut self, mut conn: Connection) -> Option<u32>{
         let id = if self.index_pool.len() > 0 {
-            self.index_pool[0]
+            self.index_pool.pop().unwrap()
         }else if self.indices < self.max_client{
             self.indices += 1;
             self.indices
