@@ -31,6 +31,7 @@ impl Connection{
         let mut reader = BytesReader::from_bytes(&msg);
         match header{
             ReceiveHeader::CREATE_ROOM => Ok(Events::CreateRoom(id, CreateRoom::from_reader(&mut reader, &msg)?)),
+            ReceiveHeader::CHAT => Ok(Events::Chat(id, Chat::from_reader(&mut reader, &msg)?)),
             _ => Err(quick_protobuf::Error::Message("Undefined header.".to_string())),
         }
     }
@@ -81,6 +82,5 @@ impl Connection{
                 break;
             }
         }
-        println!("Listening connection[{}] ended.", id);
     }
 }

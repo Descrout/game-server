@@ -44,10 +44,23 @@ impl Lobby{
         Some(id)
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize_chat(&self, id: u32, mut chat:  proto_all::Chat) -> Vec<u8> {
+        let conn = self.connections.get(&id).unwrap();
+
+        chat.name = format!("[{}]{}", id, conn.name);
+        
+        let mut out = Vec::new();
+        let mut writer = Writer::new(&mut out);
+        writer.write_message(&chat).expect("Cannot serialize chat");
+        out[0] = SendHeader::CHAT;
+        out
+    }
+
+    fn serialize_lobby(&self, my_id: u32) -> Vec<u8> {
         let mut lobby = proto_all::Lobby{
             users: Vec::new(),
             rooms: Vec::new(),
+            me: my_id,
         };
         for (id, conn) in self.connections.iter() {
             lobby.users.push(proto_all::User{id: *id, name : conn.name.clone()});
@@ -67,7 +80,7 @@ impl Lobby{
                 Events::Handshake(tx, conn) => {
                     if let Some(id) = lobby.add_connection(conn){
                         if tx.send(id).is_ok(){
-                            let data = lobby.serialize();
+                            let data = lobby.serialize_lobby(id);
                             lobby.broadcast(data).await;
                         }else{
                             lobby.connections.remove(&id).unwrap();
@@ -77,7 +90,7 @@ impl Lobby{
                 Events::Disconnect(id) => {
                     let data = {
                         lobby.connections.remove(&id).unwrap();
-                        lobby.serialize()
+                        lobby.serialize_lobby(id)
                     };
                     lobby.broadcast(data).await;
                     lobby.index_pool.push(id);
@@ -88,6 +101,10 @@ impl Lobby{
                 },
                 Events::JoinRoom(id, join_room) => {
     
+                },
+                Events::Chat(id, chat) => {
+                    let data = lobby.serialize_chat(id, chat);
+                    lobby.broadcast(data).await;
                 }
             }
         }

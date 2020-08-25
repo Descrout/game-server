@@ -6,4 +6,5 @@ pub enum Events{
     Disconnect(u32),
     CreateRoom(u32, CreateRoom),
     JoinRoom(u32, JoinRoom),
+    Chat(u32, Chat),
 }

@@ -12,15 +12,14 @@ message Room{
     int32 players = 4;
 }
 
-// 0 outgoing
 message Handshake{
     string name = 1;
 }
 
-// 0 incoming
 message Lobby{
     repeated Room rooms = 1;
     repeated User users = 2;
+    uint32 me = 3;
 }
 
 message CreateRoom{
@@ -31,4 +30,9 @@ message CreateRoom{
 message JoinRoom{
     uint32 id = 1;
     optional string password = 2;
+}
+
+message Chat{
+    optional string name = 1;
+    string message = 2;
 }
