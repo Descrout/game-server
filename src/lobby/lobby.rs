@@ -5,7 +5,7 @@ use tokio::stream::StreamExt;
 use tungstenite::{Message};
 use crate::Events;
 use futures_util::sink::SinkExt;
-use crate::proto::proto_all;
+use crate::proto::proto_all::*;
 use quick_protobuf::{Writer};
 use crate::headers::SendHeader;
 
@@ -26,7 +26,20 @@ impl Lobby{
         }
     }
 
-    pub fn add_connection(&mut self, mut conn: Connection) -> Option<u32>{
+    //temporary poor mans regex
+    fn incorrect_username(name: String) -> bool {
+        if name.len() < 3 || name.len() > 20 {return true}
+        for ch in name.chars() {
+            if ch == '<' || ch == '>' || ch == '+' || 
+            ch == '&' || ch == '%' || ch == '='{
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn add_connection(&mut self, name: String) -> Result<u32, Error>{
         let id = if self.index_pool.len() > 0 {
             self.index_pool.pop().unwrap()
         }else if self.indices < self.max_client{
@@ -36,18 +49,33 @@ impl Lobby{
             0
         };
         
-        if id == 0 {return None}
+        if id == 0 {
+            return Err(Error{
+                title: "Server is full".to_string(),
+                message: "Server is currently full, try again later.".to_string()
+            });
+        }else if Self::incorrect_username(name){
+            return Err(Error{
+                title: "Username is not suitable.".to_string(),
+                message: "Your username is not suitable, please try another one.".to_string()
+            });
+        }
 
-        conn.id = id;
-        self.connections.insert(id , conn);
-
-        Some(id)
+        Ok(id)
     }
 
-    fn serialize_chat(&self, id: u32, mut chat:  proto_all::Chat) -> Vec<u8> {
+    fn serialize_error(err: Error) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut writer = Writer::new(&mut out);
+        writer.write_message(&err).expect("Cannot serialize chat");
+        out[0] = SendHeader::ERROR;
+        out
+    }
+
+    fn serialize_chat(&self, id: u32, mut chat:  Chat) -> Vec<u8> {
         let conn = self.connections.get(&id).unwrap();
 
-        chat.name = format!("[{}]{}", id, conn.name);
+        chat.name = format!("({}) {}", id, conn.name);
         
         let mut out = Vec::new();
         let mut writer = Writer::new(&mut out);
@@ -56,20 +84,19 @@ impl Lobby{
         out
     }
 
-    fn serialize_lobby(&self, my_id: u32) -> Vec<u8> {
-        let mut lobby = proto_all::Lobby{
+    fn serialize_users(&self, my_id: u32) -> Vec<u8> {
+        let mut u = Users{
             users: Vec::new(),
-            rooms: Vec::new(),
             me: my_id,
         };
         for (id, conn) in self.connections.iter() {
-            lobby.users.push(proto_all::User{id: *id, name : conn.name.clone()});
+            u.users.push(User{id: *id, name : conn.name.clone()});
         }
         
         let mut out = Vec::new();
         let mut writer = Writer::new(&mut out);
-        writer.write_message(&lobby).expect("Cannot serialize lobby");
-        out[0] = SendHeader::LOBBY;
+        writer.write_message(&u).expect("Cannot serialize lobby");
+        out[0] = SendHeader::USERS;
         out
     }
 
@@ -77,20 +104,28 @@ impl Lobby{
         let mut lobby = Self::new();
         while let Some(event) = receiver.next().await {
             match event {
-                Events::Handshake(tx, conn) => {
-                    if let Some(id) = lobby.add_connection(conn){
-                        if tx.send(id).is_ok(){
-                            let data = lobby.serialize_lobby(id);
-                            lobby.broadcast(data).await;
-                        }else{
-                            lobby.connections.remove(&id).unwrap();
+                Events::Handshake(tx, mut conn) => {
+                    match lobby.add_connection(conn.name.clone()){
+                        Ok(id) => {
+                            conn.id = id;
+                            lobby.connections.insert(id , conn);
+
+                            if tx.send(id).is_ok(){
+                                let data = lobby.serialize_users(id);
+                                lobby.broadcast(data).await;
+                            }else{
+                                lobby.connections.remove(&id).unwrap();
+                            }
+                        },
+                        Err(err) => {
+                            let _ = conn.sender.send(Message::Binary(Self::serialize_error(err))).await;
                         }
                     }
                 },
                 Events::Disconnect(id) => {
                     let data = {
                         lobby.connections.remove(&id).unwrap();
-                        lobby.serialize_lobby(id)
+                        lobby.serialize_users(id)
                     };
                     lobby.broadcast(data).await;
                     lobby.index_pool.push(id);
@@ -109,7 +144,6 @@ impl Lobby{
             }
         }
     }
-
 
     async fn broadcast(&mut self, data: Vec<u8>) {
         for conn in self.connections.values_mut() {

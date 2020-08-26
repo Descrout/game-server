@@ -31,7 +31,7 @@ impl Connection{
         let mut reader = BytesReader::from_bytes(&msg);
         match header{
             ReceiveHeader::CREATE_ROOM => Ok(Events::CreateRoom(id, CreateRoom::from_reader(&mut reader, &msg)?)),
-            ReceiveHeader::CHAT => Ok(Events::Chat(id, Chat::from_reader(&mut reader, &msg)?)),
+            ReceiveHeader::CHAT if msg.len() < 105 => Ok(Events::Chat(id, Chat::from_reader(&mut reader, &msg)?)),
             _ => Err(quick_protobuf::Error::Message("Undefined header.".to_string())),
         }
     }
@@ -42,7 +42,7 @@ impl Connection{
 
         while let Some(msg) = receiver.next().await {
             if let Ok(msg) = msg {
-                if !msg.is_binary(){return}
+                if !msg.is_binary() || msg.len() > 200 {return}
                 let mut msg = msg.into_data();
                 let header = msg.remove(0);
                 if header == ReceiveHeader::HANDSHAKE {

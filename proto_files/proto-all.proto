@@ -1,5 +1,10 @@
 syntax = "proto3";
 
+message Error{
+    string title = 1;
+    string message = 2;
+}
+
 message User{
     uint32 id = 1;
     string name = 2;
@@ -9,17 +14,20 @@ message Room{
     uint32 id = 1;
     string name = 2;
     bool password = 3;
-    int32 players = 4;
+    uint32 players = 4;
 }
 
 message Handshake{
     string name = 1;
 }
 
-message Lobby{
+message Rooms{
     repeated Room rooms = 1;
-    repeated User users = 2;
-    uint32 me = 3;
+}
+
+message Users{
+    repeated User users = 1;
+    uint32 me = 2;
 }
 
 message CreateRoom{
