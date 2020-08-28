@@ -2,13 +2,15 @@ mod connection;
 mod lobby;
 mod proto;
 mod headers;
+mod events;
+mod game;
 
 use tokio::net::{TcpListener};
 use tokio_tungstenite::{accept_async};
 
 use connection::Connection;
-use lobby::lobby::Lobby;
-use lobby::lobby_events::Events;
+use lobby::Lobby;
+use events::*;
 use tokio::sync::mpsc;
 
 const PORT: &str = "6444";
@@ -19,10 +21,10 @@ async fn main() {
 
     let mut listener = TcpListener::bind(&addr).await.expect("Listening TCP failed.");
 
-    let (lobby_sender, lobby_receiver) = mpsc::unbounded_channel::<Events>();
+    let (lobby_sender, lobby_receiver) = mpsc::unbounded_channel::<LobbyEvents>();
 
     // Listen lobby for room creation and chat
-    tokio::spawn(Lobby::listen(lobby_receiver));
+    tokio::spawn(Lobby::listen(lobby_sender.clone(), lobby_receiver));
     
     println!("Listening on: {}", addr);
     
