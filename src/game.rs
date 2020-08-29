@@ -42,8 +42,9 @@ impl Game {
     pub async fn listen(game_id: u32, admin: Connection, mut receiver: UnboundedReceiver<GameEvents>, to_lobby: UnboundedSender<LobbyEvents>) {
         let mut game = Self::new();
         game.players.insert(admin.id, admin);
-        print!("New game listening.");
-        loop{
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(17));
+        println!("New game listening : {}", game_id);
+        loop {
             while let Ok(event) = receiver.try_recv(){
                 match event{
                     GameEvents::Join(conn) => {
@@ -56,7 +57,8 @@ impl Game {
                         }
                         let len = game.players.len();
                         to_lobby.send(LobbyEvents::PlayerCount(game_id, len)).unwrap();
-                        if len == 0{
+                        if len == 0 {
+                            println!("Game terminated : {}", game_id);
                             return;
                         }
                     },
@@ -65,6 +67,8 @@ impl Game {
                     }
                 }
             }
+            //game loop
+            interval.tick().await;
         }
     }
 

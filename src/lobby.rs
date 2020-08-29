@@ -215,11 +215,12 @@ impl Lobby{
                     }else{
                         lobby.rooms.get_mut(&room_id).unwrap().r.players = len as u32;
                     }
+                    lobby.broadcast(lobby.serialize_rooms()).await;
                 },
                 LobbyEvents::TakeBack(tx, conn) => {
                     lobby.connections.insert(conn.id , conn);
                     tx.send(()).unwrap();
-                    lobby.broadcast_lobby_info().await;
+                    lobby.broadcast_users().await;
                 },
                 LobbyEvents::Disconnect(id) => {
                     lobby.connections.remove(&id).unwrap();
@@ -242,6 +243,11 @@ impl Lobby{
                             if password {lobby.passwords.insert(room_id, create_room.password);}
                             lobby.rooms.insert(room_id , InfoRoom{r: room, sender: game_sender.clone()});
 
+                            // let tl = to_lobby.clone();
+                            // let admin = lobby.connections.remove(&user_id).unwrap();
+                            // std::thread::spawn(move || {
+                            //     Game::listen(room_id, admin, game_receiver, tl);
+                            // });
                             tokio::spawn(Game::listen(room_id, lobby.connections.remove(&user_id).unwrap(), game_receiver, to_lobby.clone()));
 
                             lobby.broadcast_lobby_info().await;
