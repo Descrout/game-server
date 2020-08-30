@@ -6,14 +6,16 @@ use tungstenite::{Message};
 use crate::events::*;
 use futures_util::sink::SinkExt;
 use crate::proto::proto_all::*;
+use crate::proto::proto_all;
 use quick_protobuf::{Writer};
 use crate::headers::SendHeader;
-use crate::game::Game;
+use crate::room::Room;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::mpsc;
 
+
 struct InfoRoom {
-    r: Room,
+    r: proto_all::Room,
     sender: UnboundedSender<GameEvents>,
 }
 
@@ -208,10 +210,12 @@ impl Lobby{
                         }
                     }
                 },
-                LobbyEvents::PlayerCount(room_id, len) => {
+                LobbyEvents::PlayerCount(room_id, user_id, len) => {
+                    lobby.connection_index_pool.push(user_id);
                     if len == 0{
                         lobby.rooms.remove(&room_id).unwrap();
                         let _ = lobby.passwords.remove(&room_id);
+                        lobby.room_index_pool.push(room_id);
                     }else{
                         lobby.rooms.get_mut(&room_id).unwrap().r.players = len as u32;
                     }
@@ -232,7 +236,7 @@ impl Lobby{
                     match lobby.add_room(create_room.name.clone()){
                         Ok(room_id) => {
                             let password = create_room.password.len() > 0;
-                            let room = Room{id: room_id, name: create_room.name, password, players: 1};
+                            let room = proto_all::Room{id: room_id, name: create_room.name, password, players: 1};
 
                             let (game_sender, game_receiver) = mpsc::unbounded_channel::<GameEvents>();
 
@@ -243,12 +247,7 @@ impl Lobby{
                             if password {lobby.passwords.insert(room_id, create_room.password);}
                             lobby.rooms.insert(room_id , InfoRoom{r: room, sender: game_sender.clone()});
 
-                            // let tl = to_lobby.clone();
-                            // let admin = lobby.connections.remove(&user_id).unwrap();
-                            // std::thread::spawn(move || {
-                            //     Game::listen(room_id, admin, game_receiver, tl);
-                            // });
-                            tokio::spawn(Game::listen(room_id, lobby.connections.remove(&user_id).unwrap(), game_receiver, to_lobby.clone()));
+                            tokio::spawn(Room::listen(room_id, lobby.connections.remove(&user_id).unwrap(), game_receiver, to_lobby.clone()));
 
                             lobby.broadcast_lobby_info().await;
                         },

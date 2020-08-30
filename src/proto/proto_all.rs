@@ -328,3 +328,128 @@ impl MessageWrite for Chat {
     }
 }
 
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct QuitLobby { }
+
+impl<'a> MessageRead<'a> for QuitLobby {
+    fn from_reader(r: &mut BytesReader, _: &[u8]) -> Result<Self> {
+        r.read_to_end();
+        Ok(Self::default())
+    }
+}
+
+impl MessageWrite for QuitLobby { }
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Entity {
+    pub id: u32,
+    pub x: f32,
+    pub y: f32,
+}
+
+impl<'a> MessageRead<'a> for Entity {
+    fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
+        let mut msg = Self::default();
+        while !r.is_eof() {
+            match r.next_tag(bytes) {
+                Ok(8) => msg.id = r.read_uint32(bytes)?,
+                Ok(21) => msg.x = r.read_float(bytes)?,
+                Ok(29) => msg.y = r.read_float(bytes)?,
+                Ok(t) => { r.read_unknown(bytes, t)?; }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(msg)
+    }
+}
+
+impl MessageWrite for Entity {
+    fn get_size(&self) -> usize {
+        0
+        + if self.id == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.id) as u64) }
+        + if self.x == 0f32 { 0 } else { 1 + 4 }
+        + if self.y == 0f32 { 0 } else { 1 + 4 }
+    }
+
+    fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
+        if self.id != 0u32 { w.write_with_tag(8, |w| w.write_uint32(*&self.id))?; }
+        if self.x != 0f32 { w.write_with_tag(21, |w| w.write_float(*&self.x))?; }
+        if self.y != 0f32 { w.write_with_tag(29, |w| w.write_float(*&self.y))?; }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct State {
+    pub entities: Vec<Entity>,
+}
+
+impl<'a> MessageRead<'a> for State {
+    fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
+        let mut msg = Self::default();
+        while !r.is_eof() {
+            match r.next_tag(bytes) {
+                Ok(10) => msg.entities.push(r.read_message::<Entity>(bytes)?),
+                Ok(t) => { r.read_unknown(bytes, t)?; }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(msg)
+    }
+}
+
+impl MessageWrite for State {
+    fn get_size(&self) -> usize {
+        0
+        + self.entities.iter().map(|s| 1 + sizeof_len((s).get_size())).sum::<usize>()
+    }
+
+    fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
+        for s in &self.entities { w.write_with_tag(10, |w| w.write_message(s))?; }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct GameInput {
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
+}
+
+impl<'a> MessageRead<'a> for GameInput {
+    fn from_reader(r: &mut BytesReader, bytes: &'a [u8]) -> Result<Self> {
+        let mut msg = Self::default();
+        while !r.is_eof() {
+            match r.next_tag(bytes) {
+                Ok(8) => msg.up = r.read_bool(bytes)?,
+                Ok(16) => msg.down = r.read_bool(bytes)?,
+                Ok(24) => msg.left = r.read_bool(bytes)?,
+                Ok(32) => msg.right = r.read_bool(bytes)?,
+                Ok(t) => { r.read_unknown(bytes, t)?; }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(msg)
+    }
+}
+
+impl MessageWrite for GameInput {
+    fn get_size(&self) -> usize {
+        0
+        + if self.up == false { 0 } else { 1 + sizeof_varint(*(&self.up) as u64) }
+        + if self.down == false { 0 } else { 1 + sizeof_varint(*(&self.down) as u64) }
+        + if self.left == false { 0 } else { 1 + sizeof_varint(*(&self.left) as u64) }
+        + if self.right == false { 0 } else { 1 + sizeof_varint(*(&self.right) as u64) }
+    }
+
+    fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
+        if self.up != false { w.write_with_tag(8, |w| w.write_bool(*&self.up))?; }
+        if self.down != false { w.write_with_tag(16, |w| w.write_bool(*&self.down))?; }
+        if self.left != false { w.write_with_tag(24, |w| w.write_bool(*&self.left))?; }
+        if self.right != false { w.write_with_tag(32, |w| w.write_bool(*&self.right))?; }
+        Ok(())
+    }
+}
+

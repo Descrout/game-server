@@ -30,6 +30,7 @@ impl Connection{
         let mut reader = BytesReader::from_bytes(&msg);
         match header{
             ReceiveHeader::GAME_CHAT if msg.len() < 105 => Ok(GameEvents::Chat(id, Chat::from_reader(&mut reader, &msg)?)),
+            ReceiveHeader::GAME_INPUT => Ok(GameEvents::Input(id, GameInput::from_reader(&mut reader, &msg)?)),
             _ => Err(quick_protobuf::Error::Message("Undefined header.".to_string())),
         }
     }

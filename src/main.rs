@@ -3,7 +3,8 @@ mod lobby;
 mod proto;
 mod headers;
 mod events;
-mod game;
+mod room;
+mod ecs;
 
 use tokio::net::{TcpListener};
 use tokio_tungstenite::{accept_async};

@@ -10,7 +10,7 @@ pub enum LobbyEvents{
     CreateRoom(u32, Sender<UnboundedSender<GameEvents>>, CreateRoom),
     JoinRoom(u32, Sender<UnboundedSender<GameEvents>>, JoinRoom),
     TakeBack(Sender<()>, Connection),
-    PlayerCount(u32, usize),
+    PlayerCount(u32, u32, usize),
     Chat(u32, Chat),
 }
 
@@ -19,4 +19,6 @@ pub enum GameEvents{
     Join(Connection),
     Quit(u32, Option<Sender<()>>),
     Chat(u32, Chat),
+    Input(u32, GameInput),
+    StateOut(State),
 }
