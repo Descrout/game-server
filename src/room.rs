@@ -73,10 +73,8 @@ impl Room {
 
                 }
             }
-            //game loop
             game.update();
-
-            if tx.send(GameEvents::StateOut(game.state.clone())).is_err() {
+            if tx.send(GameEvents::StateOut(game.states.clone())).is_err() {
                 return;
             }
             interval.tick().await;
@@ -111,10 +109,11 @@ impl Room {
                         let _ = conn.sender.send(Message::Binary(data.clone())).await;
                     }
                 },
-                GameEvents::StateOut(state) => {
-                    let data = Self::serialize_state(state);
-                    for conn in room.players.values_mut() {
-                        let _ = conn.sender.send(Message::Binary(data.clone())).await;
+                GameEvents::StateOut(states) => {
+                    for gs in states.iter() {
+                        let data = Self::serialize_state(gs.state.clone());
+                        let _ = room.players.get_mut(&gs.id).unwrap()
+                        .sender.send(Message::Binary(data)).await;
                     }
                 },
                 _ => ()

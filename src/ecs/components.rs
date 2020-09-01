@@ -10,7 +10,9 @@ pub struct IDComp {
 #[storage(VecStorage)]
 pub struct Position {
     pub x: f32,
-    pub y: f32
+    pub y: f32,
+    pub angle: f32,
+    pub last_seq: u32,
 }
 
 #[derive(Component, Debug, Clone, Default)]
@@ -18,13 +20,4 @@ pub struct Position {
 pub struct Velocity {
     pub dx: f32,
     pub dy: f32
-}
-
-#[derive(Component, Debug, Clone, Default)]
-#[storage(VecStorage)]
-pub struct InputComp {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
 }

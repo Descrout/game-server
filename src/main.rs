@@ -14,7 +14,8 @@ use lobby::Lobby;
 use events::*;
 use tokio::sync::mpsc;
 
-const PORT: &str = "6444";
+const PORT: &str = "8081";
+pub const DT: f32 = 0.016;
 
 #[tokio::main]
 async fn main() {

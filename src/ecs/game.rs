@@ -1,12 +1,15 @@
-use crate::proto::proto_all::State;
 use specs::prelude::*;
 use super::components::*;
 use std::collections::HashMap;
+use super::systems::*;
+use super::game_state::GameState;
+
+
 
 pub struct Game{
     world: World,
     players: HashMap<u32, Entity>,
-    pub state: State,
+    pub states: Vec<GameState>,
 }
 
 impl Game {
@@ -14,7 +17,7 @@ impl Game {
         let mut game = Self{
             world: Self::setup(),
             players: HashMap::new(),
-            state: State{entities:Vec::new()},
+            states: Vec::new(),
         };
         game.add_player(admin_id);
         game
@@ -24,7 +27,6 @@ impl Game {
         let mut world = World::new();
         world.register::<Position>();
         world.register::<Velocity>();
-        world.register::<InputComp>();
         world.register::<IDComp>();
         world
     }
@@ -32,88 +34,58 @@ impl Game {
 
     pub fn add_player(&mut self, id: u32) {
         let ent = self.world.create_entity()
-        .with(Position{x: 100.0, y: 100.0})
+        .with(Position{x: 100.0, y: 100.0, angle: 0.0, last_seq: 0})
         .with(IDComp{id})
         .with(Velocity::default())
-        .with(InputComp::default())
         .build();
         self.players.insert(id, ent);
+        self.states.push(GameState::new(id));
     }
 
     pub fn remove_player(&mut self, id: &u32) {
         let ent = self.players.remove(id).unwrap();
         let _ = self.world.delete_entity(ent);
+        self.states.retain(|gs| gs.id != *id);
     }
 
     pub fn set_input(&mut self, id: u32, input: crate::proto::proto_all::GameInput) {
         let ent = *self.players.get(&id).unwrap();
-        let mut input_comp = self.world.write_storage::<InputComp>();
-        let inpt = input_comp.get_mut(ent).unwrap();
-        inpt.up = input.up;
-        inpt.down = input.down;
-        inpt.left = input.left;
-        inpt.right = input.right;
-
+        //let mut vel = self.world.write_storage::<Velocity>();
+        let mut pos = self.world.write_storage::<Position>();
+        //let vel = vel.get_mut(ent).unwrap();
+        let pos = pos.get_mut(ent).unwrap();
+        if input.up {
+            pos.y -= 300.0 * crate::DT;
+        }
+        if input.down {
+            pos.y += 300.0 * crate::DT;
+        }
+        if input.left {
+            pos.x -= 300.0 * crate::DT;
+        }
+        if input.right {
+            pos.x += 300.0 * crate::DT;
+        }
+        pos.angle = input.angle;
+        pos.last_seq = input.sequence;
     }
 
     pub fn update(&mut self) {
-        let mut sys = InputSystem;
-        sys.run_now(&self.world);
-
-        let mut sys = VelSystem;
-        sys.run_now(&self.world);
+        //let mut sys = VelSystem;
+        //sys.run_now(&self.world);
 
         self.world.maintain();
 
-        self.state.entities.clear();
-        let id = self.world.read_storage::<IDComp>();
+        let player = self.world.read_storage::<IDComp>();
         let pos = self.world.read_storage::<Position>();
-        for(id, pos) in (&id, &pos).join() {
-            self.state.entities.push(crate::proto::proto_all::Entity{id: id.id, x: pos.x, y: pos.y});
+
+        for gs in self.states.iter_mut(){
+            gs.clear();
+            for(player, pos) in (&player, &pos).join() {
+                gs.state.last_seq = pos.last_seq;
+                gs.add_entity(crate::proto::proto_all::Entity{id: player.id, x: pos.x, y: pos.y, angle: pos.angle});
+            }
         }
     } 
 }
 
-pub struct VelSystem;
-
-impl<'a> System<'a> for VelSystem {
-    type SystemData = (WriteStorage<'a, Position>,
-                    ReadStorage<'a, Velocity>);
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (mut pos, vel) = data;
-        for (pos, vel) in (&mut pos, &vel).join() {
-            pos.x += vel.dx;
-            pos.y += vel.dy;
-        }
-    
-    }
-}
-
-pub struct InputSystem;
-
-impl<'a> System<'a> for InputSystem {
-    type SystemData = (ReadStorage<'a, InputComp>,
-                    WriteStorage<'a, Velocity>);
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (input, mut vel) = data;
-        for (input, vel) in (&input, &mut vel).join() {
-            vel.dx = 0.0;
-            vel.dy = 0.0;
-            if input.up {
-                vel.dy = -10.0;
-            }
-            if input.down {
-                vel.dy = 10.0;
-            }
-            if input.left {
-                vel.dx = -10.0;
-            }
-            if input.right {
-                vel.dx = 10.0;
-            }
-        }
-    
-    }
-}

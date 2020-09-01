@@ -2,6 +2,7 @@ use crate::proto::proto_all::*;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
 use crate::connection::Connection;
+use crate::ecs::game_state::GameState;
 
 #[derive(Debug)]
 pub enum LobbyEvents{
@@ -20,5 +21,5 @@ pub enum GameEvents{
     Quit(u32, Option<Sender<()>>),
     Chat(u32, Chat),
     Input(u32, GameInput),
-    StateOut(State),
+    StateOut(Vec<GameState>),
 }
