@@ -82,7 +82,9 @@ impl Game {
         for gs in self.states.iter_mut(){
             gs.clear();
             for(player, pos) in (&player, &pos).join() {
-                gs.state.last_seq = pos.last_seq;
+                if player.id == gs.id {
+                    gs.state.last_seq = pos.last_seq;
+                }
                 gs.add_entity(crate::proto::proto_all::Entity{id: player.id, x: pos.x, y: pos.y, angle: pos.angle});
             }
         }
