@@ -420,10 +420,8 @@ impl MessageWrite for State {
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct GameInput {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
+    pub horizontalPress: f32,
+    pub verticalPress: f32,
     pub angle: f32,
     pub sequence: u32,
 }
@@ -433,12 +431,10 @@ impl<'a> MessageRead<'a> for GameInput {
         let mut msg = Self::default();
         while !r.is_eof() {
             match r.next_tag(bytes) {
-                Ok(8) => msg.up = r.read_bool(bytes)?,
-                Ok(16) => msg.down = r.read_bool(bytes)?,
-                Ok(24) => msg.left = r.read_bool(bytes)?,
-                Ok(32) => msg.right = r.read_bool(bytes)?,
-                Ok(45) => msg.angle = r.read_float(bytes)?,
-                Ok(48) => msg.sequence = r.read_uint32(bytes)?,
+                Ok(13) => msg.horizontalPress = r.read_float(bytes)?,
+                Ok(21) => msg.verticalPress = r.read_float(bytes)?,
+                Ok(29) => msg.angle = r.read_float(bytes)?,
+                Ok(32) => msg.sequence = r.read_uint32(bytes)?,
                 Ok(t) => { r.read_unknown(bytes, t)?; }
                 Err(e) => return Err(e),
             }
@@ -450,21 +446,17 @@ impl<'a> MessageRead<'a> for GameInput {
 impl MessageWrite for GameInput {
     fn get_size(&self) -> usize {
         0
-        + if self.up == false { 0 } else { 1 + sizeof_varint(*(&self.up) as u64) }
-        + if self.down == false { 0 } else { 1 + sizeof_varint(*(&self.down) as u64) }
-        + if self.left == false { 0 } else { 1 + sizeof_varint(*(&self.left) as u64) }
-        + if self.right == false { 0 } else { 1 + sizeof_varint(*(&self.right) as u64) }
+        + if self.horizontalPress == 0f32 { 0 } else { 1 + 4 }
+        + if self.verticalPress == 0f32 { 0 } else { 1 + 4 }
         + if self.angle == 0f32 { 0 } else { 1 + 4 }
         + if self.sequence == 0u32 { 0 } else { 1 + sizeof_varint(*(&self.sequence) as u64) }
     }
 
     fn write_message<W: WriterBackend>(&self, w: &mut Writer<W>) -> Result<()> {
-        if self.up != false { w.write_with_tag(8, |w| w.write_bool(*&self.up))?; }
-        if self.down != false { w.write_with_tag(16, |w| w.write_bool(*&self.down))?; }
-        if self.left != false { w.write_with_tag(24, |w| w.write_bool(*&self.left))?; }
-        if self.right != false { w.write_with_tag(32, |w| w.write_bool(*&self.right))?; }
-        if self.angle != 0f32 { w.write_with_tag(45, |w| w.write_float(*&self.angle))?; }
-        if self.sequence != 0u32 { w.write_with_tag(48, |w| w.write_uint32(*&self.sequence))?; }
+        if self.horizontalPress != 0f32 { w.write_with_tag(13, |w| w.write_float(*&self.horizontalPress))?; }
+        if self.verticalPress != 0f32 { w.write_with_tag(21, |w| w.write_float(*&self.verticalPress))?; }
+        if self.angle != 0f32 { w.write_with_tag(29, |w| w.write_float(*&self.angle))?; }
+        if self.sequence != 0u32 { w.write_with_tag(32, |w| w.write_uint32(*&self.sequence))?; }
         Ok(())
     }
 }

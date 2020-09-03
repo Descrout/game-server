@@ -62,10 +62,8 @@ message State {
 }
 
 message GameInput {
-    bool up = 1;
-    bool down = 2;
-    bool left = 3;
-    bool right = 4;
-    float angle= 5;
-    uint32 sequence = 6;
+    float horizontalPress = 1;
+    float verticalPress = 2;
+    float angle = 3;
+    uint32 sequence = 4;
 }

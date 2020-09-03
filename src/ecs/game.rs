@@ -5,7 +5,6 @@ use super::game_state::GameState;
 
 
 pub const SERVER_RATE: u64 = 45; // 60fps 0.016dt 
-const CLIENT_DT: f32 = 0.016;
 
 pub struct Game{
     world: World,
@@ -55,18 +54,8 @@ impl Game {
         let mut pos = self.world.write_storage::<Position>();
         //let vel = vel.get_mut(ent).unwrap();
         let pos = pos.get_mut(ent).unwrap();
-        if input.up {
-            pos.y -= 300.0 * CLIENT_DT;
-        }
-        if input.down {
-            pos.y += 300.0 * CLIENT_DT;
-        }
-        if input.left {
-            pos.x -= 300.0 * CLIENT_DT;
-        }
-        if input.right {
-            pos.x += 300.0 * CLIENT_DT;
-        }
+        pos.x += 300.0 * input.horizontalPress;
+        pos.y += 300.0 * input.verticalPress;
         pos.angle = input.angle;
         pos.last_seq = input.sequence;
     }
