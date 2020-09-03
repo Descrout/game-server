@@ -14,12 +14,11 @@ use lobby::Lobby;
 use events::*;
 use tokio::sync::mpsc;
 
-const PORT: &str = "8081";
-pub const DT: f32 = 0.016;
+const PORT: &str = "6444";
 
 #[tokio::main]
 async fn main() {
-    let addr = format!("127.0.0.1:{}", PORT);
+    let addr = format!("0.0.0.0:{}", PORT);
 
     let mut listener = TcpListener::bind(&addr).await.expect("Listening TCP failed.");
 

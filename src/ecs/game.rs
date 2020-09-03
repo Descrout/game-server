@@ -1,10 +1,11 @@
 use specs::prelude::*;
 use super::components::*;
 use std::collections::HashMap;
-use super::systems::*;
 use super::game_state::GameState;
 
 
+pub const SERVER_RATE: u64 = 45; // 60fps 0.016dt 
+const CLIENT_DT: f32 = 0.016;
 
 pub struct Game{
     world: World,
@@ -55,16 +56,16 @@ impl Game {
         //let vel = vel.get_mut(ent).unwrap();
         let pos = pos.get_mut(ent).unwrap();
         if input.up {
-            pos.y -= 300.0 * crate::DT;
+            pos.y -= 300.0 * CLIENT_DT;
         }
         if input.down {
-            pos.y += 300.0 * crate::DT;
+            pos.y += 300.0 * CLIENT_DT;
         }
         if input.left {
-            pos.x -= 300.0 * crate::DT;
+            pos.x -= 300.0 * CLIENT_DT;
         }
         if input.right {
-            pos.x += 300.0 * crate::DT;
+            pos.x += 300.0 * CLIENT_DT;
         }
         pos.angle = input.angle;
         pos.last_seq = input.sequence;
@@ -82,7 +83,7 @@ impl Game {
         for gs in self.states.iter_mut(){
             gs.clear();
             for(player, pos) in (&player, &pos).join() {
-                if player.id == gs.id {
+                if player.id == gs.id { // if this is the player who will get this state as own
                     gs.state.last_seq = pos.last_seq;
                 }
                 gs.add_entity(crate::proto::proto_all::Entity{id: player.id, x: pos.x, y: pos.y, angle: pos.angle});

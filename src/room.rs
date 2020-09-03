@@ -46,8 +46,12 @@ impl Room {
         let mut game = Game::new(admin.id);
         let (tx, rx) = mpsc::unbounded_channel::<GameEvents>();
         tokio::spawn(Self::broadcast(game_id, admin, rx, to_lobby));
-        let mut interval = tokio::time::interval(std::time::Duration::from_millis(17));
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(crate::ecs::game::SERVER_RATE));
+        let mut accum = 0.0;
+        let mut dt = 0.0;
+
         loop {
+            let start = std::time::Instant::now();
             while let Ok(event) = receiver.try_recv(){
                 match event {
                     GameEvents::Join(conn) => {
@@ -73,11 +77,21 @@ impl Room {
 
                 }
             }
-            game.update();
-            if tx.send(GameEvents::StateOut(game.states.clone())).is_err() {
-                return;
+            
+            accum += dt;
+            while accum >= 0.045 {
+                accum -= 0.045;
+
+                game.update();
+
+                if tx.send(GameEvents::StateOut(game.states.clone())).is_err() {
+                    return;  
+                }
+            
             }
+
             interval.tick().await;
+            dt = start.elapsed().as_secs_f32();
         }
     }
 
