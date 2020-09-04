@@ -1,25 +1,24 @@
-use std::collections::HashMap;
 use crate::connection::Connection;
-use tokio::sync::mpsc::UnboundedReceiver;
-use tokio::stream::StreamExt;
-use tungstenite::{Message};
 use crate::events::*;
-use futures_util::sink::SinkExt;
-use crate::proto::proto_all::*;
-use crate::proto::proto_all;
-use quick_protobuf::{Writer};
 use crate::headers::SendHeader;
+use crate::proto::proto_all;
+use crate::proto::proto_all::*;
 use crate::room::Room;
-use tokio::sync::mpsc::UnboundedSender;
+use futures_util::sink::SinkExt;
+use quick_protobuf::Writer;
+use std::collections::HashMap;
+use tokio::stream::StreamExt;
 use tokio::sync::mpsc;
-
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::UnboundedSender;
+use tungstenite::Message;
 
 struct InfoRoom {
     r: proto_all::Room,
     sender: UnboundedSender<GameEvents>,
 }
 
-pub struct Lobby{
+pub struct Lobby {
     connections: HashMap<u32, Connection>,
     max_client: u32,
     connection_indices: u32,
@@ -30,9 +29,9 @@ pub struct Lobby{
     room_index_pool: Vec<u32>,
 }
 
-impl Lobby{
-    pub fn new() -> Self{
-        Self{
+impl Lobby {
+    pub fn new() -> Self {
+        Self {
             connections: HashMap::new(),
             max_client: 100,
             connection_indices: 0,
@@ -46,36 +45,37 @@ impl Lobby{
 
     //temporary poor mans regex
     fn incorrect_name(name: String, len: usize) -> bool {
-        if name.len() < 3 || name.len() > len {return true}
+        if name.len() < 3 || name.len() > len {
+            return true;
+        }
         for ch in name.chars() {
-            if ch == '<' || ch == '>' || ch == '+' || 
-            ch == '&' || ch == '%' || ch == '='{
-                return true
+            if ch == '<' || ch == '>' || ch == '+' || ch == '&' || ch == '%' || ch == '=' {
+                return true;
             }
         }
 
         false
     }
 
-    pub fn add_room(&mut self, name: String) -> Result<u32, Error>{
-        let id = if self.room_index_pool.len() > 0 {
+    pub fn add_room(&mut self, name: String) -> Result<u32, Error> {
+        let id = if !self.room_index_pool.is_empty() {
             self.room_index_pool.pop().unwrap()
-        }else if self.room_indices < self.max_client{
+        } else if self.room_indices < self.max_client {
             self.room_indices += 1;
             self.room_indices
-        }else {
+        } else {
             0
         };
-        
+
         if id == 0 {
-            return Err(Error{
+            return Err(Error {
                 title: "Max room count exceed!".to_string(),
-                message: "Cannot create any more room, try again later.".to_string()
+                message: "Cannot create any more room, try again later.".to_string(),
             });
-        }else if Self::incorrect_name(name, 100){
-            return Err(Error{
+        } else if Self::incorrect_name(name, 100) {
+            return Err(Error {
                 title: "Room name is not suitable".to_string(),
-                message: "Room name is not suitable, please try another one.".to_string()
+                message: "Room name is not suitable, please try another one.".to_string(),
             });
         }
 
@@ -88,57 +88,55 @@ impl Lobby{
                 if pass == &join_room.password {
                     if room.r.players < 6 {
                         room.r.players += 1;
-                        return Ok(room.sender.clone());
-                    }else {
-                        return Err(Error{
+                        Ok(room.sender.clone())
+                    } else {
+                        Err(Error {
                             title: "Room is full.".to_string(),
-                            message: "Maximum player count reached.".to_string()
-                        });
+                            message: "Maximum player count reached.".to_string(),
+                        })
                     }
-                }else {
-                    return Err(Error{
+                } else {
+                    Err(Error {
                         title: "Incorrect room password.".to_string(),
-                        message: "Incorrect password, try again.".to_string()
-                    });
+                        message: "Incorrect password, try again.".to_string(),
+                    })
                 }
-            }else {
-                if room.r.players < 6 {
-                    room.r.players += 1;
-                    return Ok(room.sender.clone());
-                }else {
-                    return Err(Error{
-                        title: "Room is full.".to_string(),
-                        message: "Maximum player count reached.".to_string()
-                    });
-                }
+            } else if room.r.players < 6 {
+                room.r.players += 1;
+                Ok(room.sender.clone())
+            } else {
+                Err(Error {
+                    title: "Room is full.".to_string(),
+                    message: "Maximum player count reached.".to_string(),
+                })
             }
-        }else {
-            return Err(Error{
+        } else {
+            Err(Error {
                 title: "Room cannot be find.".to_string(),
-                message: "Room is no longer valid.".to_string()
-            });
+                message: "Room is no longer valid.".to_string(),
+            })
         }
     }
 
-    pub fn add_connection(&mut self, name: String) -> Result<u32, Error>{
-        let id = if self.connection_index_pool.len() > 0 {
+    pub fn add_connection(&mut self, name: String) -> Result<u32, Error> {
+        let id = if !self.connection_index_pool.is_empty() {
             self.connection_index_pool.pop().unwrap()
-        }else if self.connection_indices < self.max_client{
+        } else if self.connection_indices < self.max_client {
             self.connection_indices += 1;
             self.connection_indices
-        }else {
+        } else {
             0
         };
-        
+
         if id == 0 {
-            return Err(Error{
+            return Err(Error {
                 title: "Server is full".to_string(),
-                message: "Server is currently full, try again later.".to_string()
+                message: "Server is currently full, try again later.".to_string(),
             });
-        }else if Self::incorrect_name(name, 20){
-            return Err(Error{
+        } else if Self::incorrect_name(name, 20) {
+            return Err(Error {
                 title: "Username is not suitable.".to_string(),
-                message: "Your username is not suitable, please try another one.".to_string()
+                message: "Your username is not suitable, please try another one.".to_string(),
             });
         }
 
@@ -153,11 +151,11 @@ impl Lobby{
         out
     }
 
-    fn serialize_chat(&self, id: u32, mut chat:  Chat) -> Vec<u8> {
+    fn serialize_chat(&self, id: u32, mut chat: Chat) -> Vec<u8> {
         let conn = self.connections.get(&id).unwrap();
 
         chat.name = format!("({}) {}", id, conn.name);
-        
+
         let mut out = Vec::new();
         let mut writer = Writer::new(&mut out);
         writer.write_message(&chat).expect("Cannot serialize chat");
@@ -168,15 +166,15 @@ impl Lobby{
     fn serialize_users(users: Users) -> Vec<u8> {
         let mut out = Vec::new();
         let mut writer = Writer::new(&mut out);
-        writer.write_message(&users).expect("Cannot serialize lobby");
+        writer
+            .write_message(&users)
+            .expect("Cannot serialize lobby");
         out[0] = SendHeader::USERS;
         out
     }
 
-    fn serialize_rooms(&self) -> Vec<u8>  {
-        let mut rooms = Rooms{
-            rooms: Vec::new(),
-        };
+    fn serialize_rooms(&self) -> Vec<u8> {
+        let mut rooms = Rooms { rooms: Vec::new() };
 
         for room in self.rooms.values() {
             rooms.rooms.push(room.r.clone());
@@ -184,91 +182,122 @@ impl Lobby{
 
         let mut out = Vec::new();
         let mut writer = Writer::new(&mut out);
-        writer.write_message(&rooms).expect("Cannot serialize lobby");
+        writer
+            .write_message(&rooms)
+            .expect("Cannot serialize lobby");
         out[0] = SendHeader::ROOMS;
         out
     }
 
-    pub async fn listen(to_lobby: UnboundedSender<LobbyEvents>, mut receiver: UnboundedReceiver<LobbyEvents>) {
+    pub async fn listen(
+        to_lobby: UnboundedSender<LobbyEvents>,
+        mut receiver: UnboundedReceiver<LobbyEvents>,
+    ) {
         let mut lobby = Self::new();
         while let Some(event) = receiver.next().await {
             match event {
                 LobbyEvents::Handshake(tx, mut conn) => {
-                    match lobby.add_connection(conn.name.clone()){
+                    match lobby.add_connection(conn.name.clone()) {
                         Ok(id) => {
                             conn.id = id;
-                            lobby.connections.insert(id , conn);
+                            lobby.connections.insert(id, conn);
 
-                            if tx.send(id).is_ok(){
+                            if tx.send(id).is_ok() {
                                 lobby.broadcast_lobby_info().await;
-                            }else{
+                            } else {
                                 lobby.connections.remove(&id).unwrap();
                             }
-                        },
+                        }
                         Err(err) => {
-                            let _ = conn.sender.send(Message::Binary(Self::serialize_error(err))).await;
+                            let _ = conn
+                                .sender
+                                .send(Message::Binary(Self::serialize_error(err)))
+                                .await;
                         }
                     }
-                },
+                }
                 LobbyEvents::PlayerCount(room_id, user_id, len) => {
                     lobby.connection_index_pool.push(user_id);
-                    if len == 0{
+                    if len == 0 {
                         lobby.rooms.remove(&room_id).unwrap();
                         let _ = lobby.passwords.remove(&room_id);
                         lobby.room_index_pool.push(room_id);
-                    }else{
+                    } else {
                         lobby.rooms.get_mut(&room_id).unwrap().r.players = len as u32;
                     }
                     lobby.broadcast(lobby.serialize_rooms()).await;
-                },
+                }
                 LobbyEvents::TakeBack(tx, conn) => {
-                    lobby.connections.insert(conn.id , conn);
+                    lobby.connections.insert(conn.id, conn);
                     tx.send(()).unwrap();
                     lobby.broadcast_users().await;
-                },
+                }
                 LobbyEvents::Disconnect(id) => {
                     lobby.connections.remove(&id).unwrap();
                     lobby.connection_index_pool.push(id);
                     lobby.broadcast_users().await;
                     println!("Connection lost {}", id);
-                },
+                }
                 LobbyEvents::CreateRoom(user_id, tx, create_room) => {
-                    match lobby.add_room(create_room.name.clone()){
+                    match lobby.add_room(create_room.name.clone()) {
                         Ok(room_id) => {
-                            let password = create_room.password.len() > 0;
-                            let room = proto_all::Room{id: room_id, name: create_room.name, password, players: 1};
+                            let password = !create_room.password.is_empty();
+                            let room = proto_all::Room {
+                                id: room_id,
+                                name: create_room.name,
+                                password,
+                                players: 1,
+                            };
 
-                            let (game_sender, game_receiver) = mpsc::unbounded_channel::<GameEvents>();
+                            let (game_sender, game_receiver) =
+                                mpsc::unbounded_channel::<GameEvents>();
 
                             if tx.send(game_sender.clone()).is_err() {
                                 continue;
                             }
 
-                            if password {lobby.passwords.insert(room_id, create_room.password);}
-                            lobby.rooms.insert(room_id , InfoRoom{r: room, sender: game_sender.clone()});
+                            if password {
+                                lobby.passwords.insert(room_id, create_room.password);
+                            }
+                            lobby.rooms.insert(
+                                room_id,
+                                InfoRoom {
+                                    r: room,
+                                    sender: game_sender.clone(),
+                                },
+                            );
 
-                            tokio::spawn(Room::listen(room_id, lobby.connections.remove(&user_id).unwrap(), game_receiver, to_lobby.clone()));
+                            tokio::spawn(Room::listen(
+                                room_id,
+                                lobby.connections.remove(&user_id).unwrap(),
+                                game_receiver,
+                                to_lobby.clone(),
+                            ));
 
                             lobby.broadcast_lobby_info().await;
-                        },
+                        }
                         Err(err) => {
                             lobby.send_to(user_id, Self::serialize_error(err)).await;
                         }
                     }
-                },
+                }
                 LobbyEvents::JoinRoom(user_id, tx, join_room) => {
-                    match lobby.join_to_room(join_room){
+                    match lobby.join_to_room(join_room) {
                         Ok(game_sender) => {
                             if tx.send(game_sender.clone()).is_err() {
                                 continue;
                             }
-                            game_sender.send(GameEvents::Join(lobby.connections.remove(&user_id).unwrap())).unwrap();
-                        },
+                            game_sender
+                                .send(GameEvents::Join(
+                                    lobby.connections.remove(&user_id).unwrap(),
+                                ))
+                                .unwrap();
+                        }
                         Err(err) => {
                             lobby.send_to(user_id, Self::serialize_error(err)).await;
                         }
                     }
-                },
+                }
                 LobbyEvents::Chat(id, chat) => {
                     let data = lobby.serialize_chat(id, chat);
                     lobby.broadcast(data).await;
@@ -280,13 +309,22 @@ impl Lobby{
     async fn broadcast_lobby_info(&mut self) {
         let mut users = Vec::new();
         for (id, conn) in self.connections.iter() {
-            users.push(User{id: *id, name : conn.name.clone()});
+            users.push(User {
+                id: *id,
+                name: conn.name.clone(),
+            });
         }
         let rooms = self.serialize_rooms();
 
         for conn in self.connections.values_mut() {
-            let u = Users{users: users.clone(), me: conn.id};
-            let _ = conn.sender.send(Message::Binary(Self::serialize_users(u))).await;
+            let u = Users {
+                users: users.clone(),
+                me: conn.id,
+            };
+            let _ = conn
+                .sender
+                .send(Message::Binary(Self::serialize_users(u)))
+                .await;
             let _ = conn.sender.send(Message::Binary(rooms.clone())).await;
         }
     }
@@ -294,16 +332,31 @@ impl Lobby{
     async fn broadcast_users(&mut self) {
         let mut users = Vec::new();
         for (id, conn) in self.connections.iter() {
-            users.push(User{id: *id, name : conn.name.clone()});
+            users.push(User {
+                id: *id,
+                name: conn.name.clone(),
+            });
         }
         for conn in self.connections.values_mut() {
-            let u = Users{users: users.clone(), me: conn.id};
-            let _ = conn.sender.send(Message::Binary(Self::serialize_users(u))).await;
+            let u = Users {
+                users: users.clone(),
+                me: conn.id,
+            };
+            let _ = conn
+                .sender
+                .send(Message::Binary(Self::serialize_users(u)))
+                .await;
         }
     }
 
     async fn send_to(&mut self, id: u32, data: Vec<u8>) {
-        let _ = self.connections.get_mut(&id).unwrap().sender.send(Message::Binary(data)).await;       
+        let _ = self
+            .connections
+            .get_mut(&id)
+            .unwrap()
+            .sender
+            .send(Message::Binary(data))
+            .await;
     }
 
     async fn broadcast(&mut self, data: Vec<u8>) {

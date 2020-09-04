@@ -1,12 +1,11 @@
-use specs::prelude::*;
 use super::components::*;
-use std::collections::HashMap;
 use super::game_state::GameState;
+use specs::prelude::*;
+use std::collections::HashMap;
 
+pub const SERVER_RATE: u64 = 45; // 60fps 0.016dt
 
-pub const SERVER_RATE: u64 = 45; // 60fps 0.016dt 
-
-pub struct Game{
+pub struct Game {
     world: World,
     players: HashMap<u32, Entity>,
     pub states: Vec<GameState>,
@@ -14,7 +13,7 @@ pub struct Game{
 
 impl Game {
     pub fn new(admin_id: u32) -> Self {
-        let mut game = Self{
+        let mut game = Self {
             world: Self::setup(),
             players: HashMap::new(),
             states: Vec::new(),
@@ -31,13 +30,19 @@ impl Game {
         world
     }
 
-
     pub fn add_player(&mut self, id: u32) {
-        let ent = self.world.create_entity()
-        .with(Position{x: 100.0, y: 100.0, angle: 0.0, last_seq: 0})
-        .with(IDComp{id})
-        .with(Velocity::default())
-        .build();
+        let ent = self
+            .world
+            .create_entity()
+            .with(Position {
+                x: 100.0,
+                y: 100.0,
+                angle: 0.0,
+                last_seq: 0,
+            })
+            .with(IDComp { id })
+            .with(Velocity::default())
+            .build();
         self.players.insert(id, ent);
         self.states.push(GameState::new(id));
     }
@@ -69,15 +74,20 @@ impl Game {
         let player = self.world.read_storage::<IDComp>();
         let pos = self.world.read_storage::<Position>();
 
-        for gs in self.states.iter_mut(){
+        for gs in self.states.iter_mut() {
             gs.clear();
-            for(player, pos) in (&player, &pos).join() {
-                if player.id == gs.id { // if this is the player who will get this state as own
+            for (player, pos) in (&player, &pos).join() {
+                if player.id == gs.id {
+                    // if this is the player who will get this state as own
                     gs.state.last_seq = pos.last_seq;
                 }
-                gs.add_entity(crate::proto::proto_all::Entity{id: player.id, x: pos.x, y: pos.y, angle: pos.angle});
+                gs.add_entity(crate::proto::proto_all::Entity {
+                    id: player.id,
+                    x: pos.x,
+                    y: pos.y,
+                    angle: pos.angle,
+                });
             }
         }
-    } 
+    }
 }
-

@@ -19,5 +19,5 @@ pub struct Position {
 #[storage(VecStorage)]
 pub struct Velocity {
     pub dx: f32,
-    pub dy: f32
+    pub dy: f32,
 }

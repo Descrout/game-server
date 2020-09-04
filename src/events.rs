@@ -1,11 +1,11 @@
+use crate::connection::Connection;
+use crate::ecs::game_state::GameState;
 use crate::proto::proto_all::*;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
-use crate::connection::Connection;
-use crate::ecs::game_state::GameState;
 
 #[derive(Debug)]
-pub enum LobbyEvents{
+pub enum LobbyEvents {
     Handshake(Sender<u32>, Connection),
     Disconnect(u32),
     CreateRoom(u32, Sender<UnboundedSender<GameEvents>>, CreateRoom),
@@ -16,7 +16,7 @@ pub enum LobbyEvents{
 }
 
 #[derive(Debug)]
-pub enum GameEvents{
+pub enum GameEvents {
     Join(Connection),
     Quit(u32, Option<Sender<()>>),
     Chat(u32, Chat),

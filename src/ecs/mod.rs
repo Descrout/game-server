@@ -1,4 +1,4 @@
-pub mod game;
 pub mod components;
-pub mod systems;
+pub mod game;
 pub mod game_state;
+pub mod systems;

@@ -4,8 +4,7 @@ use specs::prelude::*;
 pub struct VelSystem;
 
 impl<'a> System<'a> for VelSystem {
-    type SystemData = (WriteStorage<'a, Position>,
-                    WriteStorage<'a, Velocity>);
+    type SystemData = (WriteStorage<'a, Position>, WriteStorage<'a, Velocity>);
 
     fn run(&mut self, data: Self::SystemData) {
         let (mut pos, mut vel) = data;
@@ -15,7 +14,5 @@ impl<'a> System<'a> for VelSystem {
             vel.dx = 0.0;
             vel.dy = 0.0;
         }
-    
     }
 }
-
