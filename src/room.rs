@@ -53,35 +53,35 @@ impl Room {
         loop {
             let start = tokio::time::Instant::now();
             
+            while let Ok(event) = receiver.try_recv(){
+                match event {
+                    GameEvents::Join(conn) => {
+                        game.add_player(conn.id);
+                        if tx.send(GameEvents::Join(conn)).is_err() {
+                            return;
+                        }
+                    },
+                    GameEvents::Quit(user_id, forward) => {
+                        game.remove_player(&user_id);
+                        if tx.send(GameEvents::Quit(user_id, forward)).is_err() {
+                            return;
+                        }
+                    },
+                    GameEvents::Input(id, input) => {
+                        game.set_input(id, input);
+                    },
+                    _ => {
+                        if tx.send(event).is_err() {
+                            return;
+                        }
+                    }
+
+                }
+            }
+
             accum += dt;
             while accum >= 0.045 {
                 accum -= 0.045;
-
-                while let Ok(event) = receiver.try_recv(){
-                    match event {
-                        GameEvents::Join(conn) => {
-                            game.add_player(conn.id);
-                            if tx.send(GameEvents::Join(conn)).is_err() {
-                                return;
-                            }
-                        },
-                        GameEvents::Quit(user_id, forward) => {
-                            game.remove_player(&user_id);
-                            if tx.send(GameEvents::Quit(user_id, forward)).is_err() {
-                                return;
-                            }
-                        },
-                        GameEvents::Input(id, input) => {
-                            game.set_input(id, input);
-                        },
-                        _ => {
-                            if tx.send(event).is_err() {
-                                return;
-                            }
-                        }
-    
-                    }
-                }
 
                 game.update();
 
@@ -124,7 +124,6 @@ impl Room {
                     }
                 },
                 GameEvents::StateOut(states) => {
-
                     for gs in states.iter() {
                         let data = Self::serialize_state(gs.state.clone());
                         let _ = room.players.get_mut(&gs.id).unwrap()
